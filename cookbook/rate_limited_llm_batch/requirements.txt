@@ -1,0 +1,10 @@
+# Core dependencies
+pocketflow>=0.0.3
+pocketflow-throttled>=0.1.0
+
+# LLM Providers (install the one you need)
+anthropic>=0.18.0
+# openai>=1.0.0
+
+# Utilities
+python-dotenv>=1.0.0

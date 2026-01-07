@@ -1,0 +1,105 @@
+[project]
+name = "pocketflow-throttled"
+version = "0.1.0"
+description = "Rate-limited parallel execution extension for PocketFlow - throttle LLM and API calls with ease"
+readme = "README.md"
+authors = [
+    { name = "Jason-AI-lab", email = "jzhang7@hoopp.com" }
+]
+license = { text = "MIT" }
+requires-python = ">=3.10"
+keywords = [
+    "pocketflow",
+    "llm",
+    "rate-limit",
+    "throttling",
+    "async",
+    "parallel",
+    "batch-processing",
+    "api",
+    "openai",
+    "anthropic",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Internet :: WWW/HTTP",
+    "Typing :: Typed",
+]
+dependencies = [
+    "pocketflow>=0.0.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.0.0",
+    "mypy>=1.0.0",
+    "ruff>=0.1.0",
+]
+anthropic = [
+    "anthropic>=0.18.0",
+]
+openai = [
+    "openai>=1.0.0",
+]
+all = [
+    "anthropic>=0.18.0",
+    "openai>=1.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/Jason-AI-lab/pocketflow-throttled"
+Documentation = "https://github.com/Jason-AI-lab/pocketflow-throttled#readme"
+Repository = "https://github.com/Jason-AI-lab/pocketflow-throttled"
+Issues = "https://github.com/Jason-AI-lab/pocketflow-throttled/issues"
+
+[project.scripts]
+pocketflow-throttled = "pocketflow_throttled:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pocketflow_throttled"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-v --tb=short"
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+ignore = ["E501"]  # Line too long - handled by formatter
+
+[tool.coverage.run]
+source = ["src/pocketflow_throttled"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+]

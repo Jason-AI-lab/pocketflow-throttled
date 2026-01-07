@@ -1,0 +1,23 @@
+version = 1
+revision = 3
+requires-python = ">=3.13"
+
+[[package]]
+name = "pocketflow"
+version = "0.0.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/22/96/2e15fa9d94329032d034337210bd6cc9d060eed59eb0b24dcb1375c0f2ec/pocketflow-0.0.3.tar.gz", hash = "sha256:afadc1c44658bf811668a789dee7053ed654d021c861c58696a2cb6bc4775133", size = 19463, upload-time = "2025-07-28T00:55:55.807Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/00/5e/1f27d937a4983c8783d9255c4880e9b8a5a1774ebc4eb55d4c3f3d112d6b/pocketflow-0.0.3-py3-none-any.whl", hash = "sha256:028795ae5db00f421c97036f7cd5e89fe0654bef2a03032c84fcf6f61a292962", size = 4484, upload-time = "2025-07-28T00:55:54.734Z" },
+]
+
+[[package]]
+name = "pocketflow-throttled"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "pocketflow" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pocketflow", specifier = ">=0.0.3" }]
