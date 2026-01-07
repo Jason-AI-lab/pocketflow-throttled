@@ -212,6 +212,11 @@ class AdaptiveThrottledNode(ThrottledParallelBatchNode):
         - On rate limit error: Reduces concurrency by backoff_factor (default: halves)
         - On sustained success: Increases concurrency by recovery_factor after
           recovery_threshold consecutive successes (default: +20% after 10 successes)
+    
+    Note:
+        Unlike the parent class where max_concurrent is the limiter setting,
+        here max_concurrent serves as the ceiling for adaptive scaling.
+        The actual limiter uses _current_concurrent which adapts over time.
     """
     
     # Adaptive throttling configuration
@@ -243,13 +248,13 @@ class AdaptiveThrottledNode(ThrottledParallelBatchNode):
             wait: Seconds to wait between retries
             initial_concurrent: Starting concurrency level
             min_concurrent: Minimum concurrency floor
-            max_concurrent: Maximum concurrency ceiling
+            max_concurrent: Maximum concurrency ceiling (for adaptive scaling)
             backoff_factor: Concurrency multiplier on rate limit (0-1)
             recovery_threshold: Successes needed before recovery
             recovery_factor: Concurrency multiplier on recovery (>1)
             max_per_minute: Optional fixed rate limit (requests per minute)
         """
-        # Set adaptive config before parent init
+        # Set adaptive config BEFORE parent init
         if initial_concurrent is not None:
             self.initial_concurrent = initial_concurrent
         if min_concurrent is not None:
@@ -263,19 +268,39 @@ class AdaptiveThrottledNode(ThrottledParallelBatchNode):
         if recovery_factor is not None:
             self.recovery_factor = recovery_factor
         
-        # Initialize parent with initial concurrency
-        super().__init__(
-            max_retries=max_retries,
-            wait=wait,
-            max_concurrent=self.initial_concurrent,
-            max_per_minute=max_per_minute
-        )
-        
+        # Initialize adaptive state BEFORE super().__init__() so it's
+        # available when the limiter property is first accessed
         self._current_concurrent = self.initial_concurrent
         self._consecutive_successes = 0
         self._adaptive_lock = asyncio.Lock()
         self._total_rate_limits = 0
         self._total_successes = 0
+        
+        # Initialize parent WITHOUT passing max_concurrent
+        # We override the limiter property to use _current_concurrent instead
+        super().__init__(
+            max_retries=max_retries,
+            wait=wait,
+            max_per_minute=max_per_minute
+            # Note: max_concurrent intentionally NOT passed
+            # Parent's max_concurrent is not used; we override limiter property
+        )
+    
+    @property
+    def limiter(self) -> RateLimiter:
+        """
+        Lazy-initialized rate limiter using adaptive concurrency.
+        
+        Overrides parent to use _current_concurrent (the adaptive value)
+        instead of max_concurrent (which is the ceiling for this class).
+        """
+        if self._limiter is None:
+            self._limiter = RateLimiter(
+                max_concurrent=self._current_concurrent,
+                max_per_window=self.max_per_minute,
+                window_seconds=60.0
+            )
+        return self._limiter
     
     @property
     def current_concurrent(self) -> int:
@@ -314,13 +339,9 @@ class AdaptiveThrottledNode(ThrottledParallelBatchNode):
             self._consecutive_successes = 0
             self._total_rate_limits += 1
             
-            # Recreate limiter with new concurrency
+            # Reset limiter so it gets recreated with new concurrency
             if self._current_concurrent != old_concurrent:
-                self._limiter = RateLimiter(
-                    max_concurrent=self._current_concurrent,
-                    max_per_window=self.max_per_minute,
-                    window_seconds=60.0
-                )
+                self.reset_limiter()
     
     async def _on_success(self) -> None:
         """
@@ -342,13 +363,9 @@ class AdaptiveThrottledNode(ThrottledParallelBatchNode):
                 )
                 self._consecutive_successes = 0
                 
-                # Recreate limiter with new concurrency
+                # Reset limiter so it gets recreated with new concurrency
                 if self._current_concurrent != old_concurrent:
-                    self._limiter = RateLimiter(
-                        max_concurrent=self._current_concurrent,
-                        max_per_window=self.max_per_minute,
-                        window_seconds=60.0
-                    )
+                    self.reset_limiter()
     
     async def _throttled_exec(self, item: Any) -> Any:
         """
@@ -378,4 +395,4 @@ class AdaptiveThrottledNode(ThrottledParallelBatchNode):
         self._consecutive_successes = 0
         self._total_rate_limits = 0
         self._total_successes = 0
-        self._limiter = None
+        self.reset_limiter()
