@@ -10,6 +10,8 @@ Features:
     - Drop-in replacement for AsyncParallelBatchNode
     - Adaptive throttling that responds to rate limit errors
     - Pre-configured presets for popular LLM providers
+    - Flow-level throttling for AsyncParallelBatchFlow
+    - Shared rate limiters for global coordination
     - Zero external dependencies beyond PocketFlow
 
 Quick Start:
@@ -37,23 +39,44 @@ Quick Start:
     await flow.run_async({"texts": ["Hello", "World", ...]})
     ```
 
+Flow-Level Throttling:
+    ```python
+    from pocketflow_throttled import ThrottledAsyncParallelBatchFlow
+    
+    class ProcessUsersFlow(ThrottledAsyncParallelBatchFlow):
+        max_concurrent_flows = 10  # 10 users at a time
+        
+        async def prep_async(self, shared):
+            return [{"user_id": uid} for uid in shared["user_ids"]]
+    
+    flow = ProcessUsersFlow(start=MyNode())
+    await flow.run_async({"user_ids": range(1000)})
+    ```
+
 Classes:
     RateLimiter: Low-level rate limiter with sliding window algorithm
     ThrottledParallelBatchNode: Parallel batch node with fixed rate limits
     AdaptiveThrottledNode: Parallel batch node with dynamic rate limiting
+    ThrottledAsyncParallelBatchFlow: Parallel flow with fixed rate limits
+    AdaptiveThrottledBatchFlow: Parallel flow with dynamic rate limiting
+    LimiterRegistry: Global registry for shared rate limiters
     Presets: Pre-configured rate limits for popular services
+    RateLimitHit: Exception for signaling rate limits to parent flows
 
 For more information, see:
     - GitHub: https://github.com/Jason-AI-lab/pocketflow-throttled
     - PocketFlow: https://github.com/The-Pocket/PocketFlow
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __author__ = "Jason-AI-lab"
 
 from .rate_limiter import RateLimiter
 from .nodes import ThrottledParallelBatchNode, AdaptiveThrottledNode
-from .presets import Presets, RateLimitConfig
+from .flows import ThrottledAsyncParallelBatchFlow, AdaptiveThrottledBatchFlow
+from .shared import LimiterRegistry
+from .exceptions import RateLimitHit
+from .presets import Presets, RateLimitConfig, FlowPresets, FlowRateLimitConfig
 
 __all__ = [
     # Version info
@@ -61,12 +84,26 @@ __all__ = [
     
     # Core classes
     "RateLimiter",
+    
+    # Throttled nodes
     "ThrottledParallelBatchNode",
     "AdaptiveThrottledNode",
+    
+    # Throttled flows
+    "ThrottledAsyncParallelBatchFlow",
+    "AdaptiveThrottledBatchFlow",
+    
+    # Shared utilities
+    "LimiterRegistry",
+    
+    # Exceptions
+    "RateLimitHit",
     
     # Configuration
     "Presets",
     "RateLimitConfig",
+    "FlowPresets",
+    "FlowRateLimitConfig",
 ]
 
 

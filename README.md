@@ -8,7 +8,7 @@
 
 ## 🎯 Problem
 
-When using PocketFlow's `AsyncParallelBatchNode` with LLM APIs:
+When using PocketFlow's `AsyncParallelBatchNode` or `AsyncParallelBatchFlow` with LLM APIs:
 
 ```python
 # ❌ This fires ALL requests simultaneously → 429 errors!
@@ -19,7 +19,7 @@ class TranslateNode(AsyncParallelBatchNode):
 
 ## ✅ Solution
 
-Drop-in replacement with automatic rate limiting:
+Drop-in replacements with automatic rate limiting:
 
 ```python
 from pocketflow_throttled import ThrottledParallelBatchNode, Presets
@@ -51,7 +51,7 @@ pip install pocketflow-throttled[all]        # Both
 
 ## 🚀 Quick Start
 
-### Basic Usage
+### Basic Node Throttling
 
 ```python
 import asyncio
@@ -83,6 +83,31 @@ async def main():
 asyncio.run(main())
 ```
 
+### Flow-Level Throttling
+
+For batch processing where each item requires multiple API calls:
+
+```python
+from pocketflow import AsyncNode
+from pocketflow_throttled import ThrottledAsyncParallelBatchFlow
+
+class FetchUserDataNode(AsyncNode):
+    async def exec_async(self, _):
+        user_id = self.params["user_id"]
+        return await fetch_user(user_id)
+
+class ProcessUsersFlow(ThrottledAsyncParallelBatchFlow):
+    max_concurrent_flows = 10  # Process 10 users concurrently
+    max_flows_per_minute = 60  # Start max 60 users per minute
+    
+    async def prep_async(self, shared):
+        return [{"user_id": uid} for uid in shared["user_ids"]]
+
+# Process 1000 users, 10 at a time
+flow = ProcessUsersFlow(start=FetchUserDataNode())
+await flow.run_async({"user_ids": range(1000)})
+```
+
 ### Using Presets
 
 ```python
@@ -90,7 +115,6 @@ from pocketflow_throttled import ThrottledParallelBatchNode, Presets
 
 # Use pre-configured limits for popular providers
 class MyNode(ThrottledParallelBatchNode):
-    # OpenAI Tier 1: 5 concurrent, 60 RPM
     max_concurrent = Presets.OPENAI_TIER1["max_concurrent"]
     max_per_minute = Presets.OPENAI_TIER1["max_per_minute"]
 
@@ -128,9 +152,75 @@ The node automatically:
 - **Recovers** after sustained success (increases concurrency)
 - **Self-tunes** to optimal throughput
 
+### Shared Rate Limiters
+
+For global rate limit coordination across nodes and flows:
+
+```python
+from pocketflow_throttled import LimiterRegistry
+
+# Register at app startup
+LimiterRegistry.register("openai", max_concurrent=10, max_per_window=60)
+
+# Use anywhere in your code
+class MyNode(AsyncNode):
+    async def exec_async(self, item):
+        async with LimiterRegistry.get("openai"):
+            return await call_openai(item)
+```
+
 ## 📚 API Reference
 
-### `RateLimiter`
+### Node Classes
+
+#### `ThrottledParallelBatchNode`
+
+| Attribute | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `max_concurrent` | `int` | `5` | Maximum simultaneous executions |
+| `max_per_minute` | `int \| None` | `None` | Rate limit (None = unlimited) |
+| `max_retries` | `int` | `1` | Retry attempts per item |
+| `wait` | `int` | `0` | Seconds between retries |
+
+#### `AdaptiveThrottledNode`
+
+Inherits from `ThrottledParallelBatchNode` plus:
+
+| Attribute | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `initial_concurrent` | `int` | `5` | Starting concurrency |
+| `min_concurrent` | `int` | `1` | Floor for backoff |
+| `max_concurrent` | `int` | `20` | Ceiling for recovery |
+| `backoff_factor` | `float` | `0.5` | Multiplier on rate limit |
+| `recovery_threshold` | `int` | `10` | Successes before recovery |
+| `recovery_factor` | `float` | `1.2` | Multiplier on recovery |
+| `propagate_rate_limit` | `bool` | `False` | Re-raise as `RateLimitHit` |
+
+### Flow Classes
+
+#### `ThrottledAsyncParallelBatchFlow`
+
+| Attribute | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `max_concurrent_flows` | `int` | `5` | Maximum simultaneous flow instances |
+| `max_flows_per_minute` | `int \| None` | `None` | Rate limit (None = unlimited) |
+
+#### `AdaptiveThrottledBatchFlow`
+
+Inherits from `ThrottledAsyncParallelBatchFlow` plus:
+
+| Attribute | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `initial_concurrent_flows` | `int` | `5` | Starting concurrency |
+| `min_concurrent_flows` | `int` | `1` | Floor for backoff |
+| `max_concurrent_flows` | `int` | `20` | Ceiling for recovery |
+| `backoff_factor` | `float` | `0.5` | Multiplier on rate limit |
+| `recovery_threshold` | `int` | `10` | Successes before recovery |
+| `recovery_factor` | `float` | `1.2` | Multiplier on recovery |
+
+### Utilities
+
+#### `RateLimiter`
 
 Low-level rate limiter with sliding window algorithm:
 
@@ -147,27 +237,39 @@ async with limiter:
     await make_api_call()
 ```
 
-### `ThrottledParallelBatchNode`
+#### `LimiterRegistry`
 
-| Attribute | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `max_concurrent` | `int` | `5` | Maximum simultaneous executions |
-| `max_per_minute` | `int \| None` | `None` | Rate limit (None = unlimited) |
-| `max_retries` | `int` | `1` | Retry attempts per item |
-| `wait` | `int` | `0` | Seconds between retries |
+Global registry for shared rate limiters:
 
-### `AdaptiveThrottledNode`
+```python
+from pocketflow_throttled import LimiterRegistry
 
-Inherits from `ThrottledParallelBatchNode` plus:
+# Register
+LimiterRegistry.register("api_name", max_concurrent=10)
 
-| Attribute | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `initial_concurrent` | `int` | `5` | Starting concurrency |
-| `min_concurrent` | `int` | `1` | Floor for backoff |
-| `max_concurrent` | `int` | `20` | Ceiling for recovery |
-| `backoff_factor` | `float` | `0.5` | Multiplier on rate limit |
-| `recovery_threshold` | `int` | `10` | Successes before recovery |
-| `recovery_factor` | `float` | `1.2` | Multiplier on recovery |
+# Get
+limiter = LimiterRegistry.get("api_name")
+
+# Get or create (lazy)
+limiter = LimiterRegistry.get_or_create("api_name", max_concurrent=10)
+
+# List all
+LimiterRegistry.list_all()  # {'api_name': {...}}
+
+# Reset
+LimiterRegistry.reset()  # Clear all
+```
+
+#### `RateLimitHit`
+
+Exception for signaling rate limits:
+
+```python
+from pocketflow_throttled import RateLimitHit
+
+# Raise in nodes to signal to adaptive flows
+raise RateLimitHit("Rate limit exceeded", retry_after=30.0)
+```
 
 ## 📁 Project Structure
 
@@ -177,16 +279,23 @@ pocketflow-throttled/
 │   ├── __init__.py          # Package exports
 │   ├── rate_limiter.py      # RateLimiter class
 │   ├── nodes.py             # Throttled node classes
+│   ├── flows.py             # Throttled flow classes
+│   ├── shared.py            # LimiterRegistry
+│   ├── exceptions.py        # RateLimitHit
 │   └── presets.py           # Rate limit presets
 ├── tests/
 │   ├── test_rate_limiter.py
 │   ├── test_nodes.py
+│   ├── test_flows.py
+│   ├── test_shared.py
 │   └── test_presets.py
 ├── cookbook/
 │   └── rate_limited_llm_batch/
-│       ├── main.py          # Translation example
-│       ├── adaptive_example.py
-│       └── presets_example.py
+│       ├── main.py                    # Translation example
+│       ├── adaptive_example.py        # Adaptive node demo
+│       ├── presets_example.py         # Using presets
+│       ├── flow_throttle_example.py   # Flow throttling
+│       └── shared_limiter_example.py  # Shared limiters
 ├── pyproject.toml
 └── README.md
 ```

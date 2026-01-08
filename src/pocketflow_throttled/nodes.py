@@ -16,6 +16,7 @@ from typing import Any, List, Optional, Union
 from pocketflow import AsyncNode, BatchNode
 
 from .rate_limiter import RateLimiter
+from .exceptions import RateLimitHit
 
 
 class ThrottledParallelBatchNode(AsyncNode, BatchNode):
@@ -193,6 +194,7 @@ class AdaptiveThrottledNode(ThrottledParallelBatchNode):
         backoff_factor (float): Multiplier on rate limit hit (default: 0.5)
         recovery_threshold (int): Consecutive successes before recovery (default: 10)
         recovery_factor (float): Multiplier on recovery (default: 1.2)
+        propagate_rate_limit (bool): Re-raise rate limits as RateLimitHit (default: False)
     
     Example:
         ```python
@@ -213,6 +215,17 @@ class AdaptiveThrottledNode(ThrottledParallelBatchNode):
         - On sustained success: Increases concurrency by recovery_factor after
           recovery_threshold consecutive successes (default: +20% after 10 successes)
     
+    Propagating to Parent Flows:
+        When used inside AdaptiveThrottledBatchFlow, set propagate_rate_limit=True
+        to signal rate limits up to the flow for flow-level adaptation:
+        ```python
+        class MyNode(AdaptiveThrottledNode):
+            propagate_rate_limit = True  # Re-raise as RateLimitHit
+            
+            async def exec_async(self, item):
+                return await api_call(item)
+        ```
+    
     Note:
         Unlike the parent class where max_concurrent is the limiter setting,
         here max_concurrent serves as the ceiling for adaptive scaling.
@@ -226,6 +239,7 @@ class AdaptiveThrottledNode(ThrottledParallelBatchNode):
     backoff_factor: float = 0.5
     recovery_threshold: int = 10
     recovery_factor: float = 1.2
+    propagate_rate_limit: bool = False
     
     def __init__(
         self,
@@ -239,6 +253,7 @@ class AdaptiveThrottledNode(ThrottledParallelBatchNode):
         recovery_threshold: Optional[int] = None,
         recovery_factor: Optional[float] = None,
         max_per_minute: Optional[int] = None,
+        propagate_rate_limit: Optional[bool] = None,
     ):
         """
         Initialize the adaptive throttled node.
@@ -253,6 +268,7 @@ class AdaptiveThrottledNode(ThrottledParallelBatchNode):
             recovery_threshold: Successes needed before recovery
             recovery_factor: Concurrency multiplier on recovery (>1)
             max_per_minute: Optional fixed rate limit (requests per minute)
+            propagate_rate_limit: If True, re-raise rate limits as RateLimitHit
         """
         # Set adaptive config BEFORE parent init
         if initial_concurrent is not None:
@@ -267,6 +283,8 @@ class AdaptiveThrottledNode(ThrottledParallelBatchNode):
             self.recovery_threshold = recovery_threshold
         if recovery_factor is not None:
             self.recovery_factor = recovery_factor
+        if propagate_rate_limit is not None:
+            self.propagate_rate_limit = propagate_rate_limit
         
         # Initialize adaptive state BEFORE super().__init__() so it's
         # available when the limiter property is first accessed
@@ -373,6 +391,9 @@ class AdaptiveThrottledNode(ThrottledParallelBatchNode):
         
         Wraps parent execution with success/failure tracking to
         dynamically adjust the rate limiter.
+        
+        If propagate_rate_limit is True, rate limit errors are re-raised
+        as RateLimitHit exceptions for parent flows to handle.
         """
         async with self.limiter:
             try:
@@ -383,6 +404,11 @@ class AdaptiveThrottledNode(ThrottledParallelBatchNode):
             except Exception as e:
                 if self.is_rate_limit_error(e):
                     await self._on_rate_limit()
+                    if self.propagate_rate_limit:
+                        raise RateLimitHit(
+                            f"Rate limit detected: {e}",
+                            source="adaptive_node"
+                        ) from e
                 raise
     
     def reset_adaptive_state(self) -> None:
