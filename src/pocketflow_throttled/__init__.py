@@ -44,7 +44,7 @@ Classes:
     Presets: Pre-configured rate limits for popular services
 
 For more information, see:
-    - GitHub: https://github.com/your-repo/pocketflow-throttled
+    - GitHub: https://github.com/Jason-AI-lab/pocketflow-throttled
     - PocketFlow: https://github.com/The-Pocket/PocketFlow
 """
 
