@@ -510,6 +510,10 @@ async def prep_async(self, shared):
     return [{"item_id": item.id} for item in items]
 ```
 
+## Example Code
+
+See [examples/05-parameterized-flows.py](examples/05-parameterized-flows.py) for a complete, runnable example demonstrating parameterized flows with different configurations per item.
+
 ## Related Skills
 
 - **Uses this**: [Skill 03: Flow-Level Throttling](03-flow-level-throttling.md) - All flow throttling uses params

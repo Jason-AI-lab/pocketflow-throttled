@@ -55,6 +55,19 @@ Use `pocketflow-throttled` patterns when you need to:
 4. Explore **Skill 03** - Scale to flow-level
 5. Master **Skills 04, 05, 07** - Advanced patterns
 
+## Working Examples
+
+See [examples/](examples/) directory for complete, runnable code examples:
+
+- **[01-basic-node-throttling.py](examples/01-basic-node-throttling.py)** - Fixed rate limits demo
+- **[02-adaptive-throttling.py](examples/02-adaptive-throttling.py)** - Self-tuning concurrency demo
+- **[03-flow-level-throttling.py](examples/03-flow-level-throttling.py)** - Multi-node pipeline demo
+- **[04-shared-limiters.py](examples/04-shared-limiters.py)** - Global limiter coordination demo
+- **[05-parameterized-flows.py](examples/05-parameterized-flows.py)** - Different configs per item demo
+- **[06-using-presets.py](examples/06-using-presets.py)** - API preset configurations demo
+
+All examples use a mock LLM API simulator, so you can run them without real API costs. See [examples/README.md](examples/README.md) for setup instructions.
+
 ## Additional Resources
 
 - **Source Code**: `/cookbook/rate_limited_llm_batch/`

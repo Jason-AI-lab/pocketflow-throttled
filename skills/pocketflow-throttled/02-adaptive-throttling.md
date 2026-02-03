@@ -337,6 +337,12 @@ class MultiTenantNode(AdaptiveThrottledNode):
 | Complexity | Simple | More complex |
 | Best for | Known, stable limits | Unknown or variable limits |
 
+# Total: 15 × 4 = 60 concurrent calls
+
+## Example Code
+
+See [examples/02-adaptive-throttling.py](examples/02-adaptive-throttling.py) for a complete, runnable example demonstrating adaptive throttling with automatic concurrency adjustment.
+
 ## Related Skills
 
 - **Simpler**: [Skill 01: Basic Node Throttling](01-basic-node-throttling.md) - If you know limits

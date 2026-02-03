@@ -377,6 +377,10 @@ flow.reset_limiter()
 await flow.run_async({"items": batch2})
 ```
 
+## Example Code
+
+See [examples/03-flow-level-throttling.py](examples/03-flow-level-throttling.py) for a complete, runnable example demonstrating flow-level throttling with multi-node pipelines.
+
 ## Related Skills
 
 - **Simpler**: [Skill 01: Basic Node Throttling](01-basic-node-throttling.md) - Single-node batches

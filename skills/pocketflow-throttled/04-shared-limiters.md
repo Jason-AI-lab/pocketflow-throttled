@@ -480,6 +480,10 @@ async with LimiterRegistry.get("api"):
 4. **Monitor usage** - Track limiter statistics in production
 5. **Test with reset** - Use `LimiterRegistry.reset()` in test fixtures
 
+## Example Code
+
+See [examples/04-shared-limiters.py](examples/04-shared-limiters.py) for a complete, runnable example demonstrating global rate limiter coordination across multiple services.
+
 ## Related Skills
 
 - **Basic**: [Skill 01: Basic Node Throttling](01-basic-node-throttling.md) - Individual limiters

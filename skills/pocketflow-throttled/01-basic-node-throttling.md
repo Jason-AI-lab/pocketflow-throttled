@@ -255,6 +255,10 @@ prep - "api_call" >> api
 flow = AsyncFlow(start=prep)
 ```
 
+## Example Code
+
+See [examples/01-basic-node-throttling.py](examples/01-basic-node-throttling.py) for a complete, runnable example demonstrating basic node throttling with a mock LLM API.
+
 ## Related Skills
 
 - **Next**: [Skill 02: Adaptive Throttling](02-adaptive-throttling.md) - Self-tuning rate limits

@@ -491,6 +491,10 @@ def create_openai_node(tier: int):
 node = create_openai_node(tier=2)  # Tier 2 limits
 ```
 
+## Example Code
+
+See [examples/06-using-presets.py](examples/06-using-presets.py) for a complete, runnable example demonstrating how to use presets for different API providers.
+
 ## Related Skills
 
 - **Basic Usage**: [Skill 01: Basic Node Throttling](01-basic-node-throttling.md) - How to use the presets
